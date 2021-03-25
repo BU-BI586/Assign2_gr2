@@ -410,14 +410,14 @@ col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(1
 pheatmap(explc,cluster_cols=T,scale="row",color=ccol, show_rownames = F)
 
 ###################################Heatmap for the genes in common
-rldpvals <- read.csv(file="Crep2016_RLDandPVALS.csv", row.names=1)
+rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
 head(rldpvals)
 p.val=0.1 # FDR cutoff
-conds=rldpvals[rldpvals$padj.76<=p.val & !is.na(rldpvals$padj.76) & rldpvals$padj.75<=p.val & !is.na(rldpvals$padj.75),]
-rld_data= conds[,c(1:9)]
+conds=rldpvals[rldpvals$padj.heat<=p.val & !is.na(rldpvals$padj.heat),]
+rld_data= conds[,c(1:4)]
 head(rld_data)
 nrow(rld_data)
-gg=read.table("Crep454_iso2gene.tab",sep="\t", row.names=1, quote='')
+gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote='')
 library(pheatmap)
 means=apply(rld_data,1,mean) # means of rows
 explc=rld_data-means # subtracting them
@@ -428,12 +428,12 @@ col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(1
 pheatmap(explc,cluster_cols=T,scale="row",color=col0, show_rownames = F)
 
 # Make annotation table for pheatmap
-ann = data.frame(cond = c('7.5', '7.5', '7.5', '7.6', '7.6', '7.6', '8', '8', '8'))
+ann = data.frame(cond = c('Hot', 'Hot', 'Control', 'Control'))
 rownames(ann) <- names(explc)
 
 # Set colors
 Var1        <- c("darkgoldenrod2",  "darkolivegreen3", "dodgerblue3")
-names(Var1) <- c("7.5", "7.6", "8")
+names(Var1) <- c("Hot", "Control")
 anno_colors <- list(cond = Var1)
 
 pheatmap(as.matrix(explc),annotation_col=ann,annotation_colors=anno_colors,cex=1.2,color=col0,border_color=NA,clustering_distance_rows="correlation",clustering_distance_cols="correlation", show_rownames=T)
