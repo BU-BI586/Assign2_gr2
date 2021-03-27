@@ -7,7 +7,7 @@ BiocManager::install(c("arrayQualityMetrics"))
 BiocManager::install("DESeq", version = "3.12")
 devtools::install_version("DESeq", "1.38.0")
 #set your working directory
-#setwd("~/BI 586/BI586_mainfiles/Deseq_lab/Deseq_lab") #you will need to change to your own directory
+#setwd("/usr4/bi594/skoppara/Assignment2/Assign2_gr2") #you will need to change to your own directory
 
 ###conduct array quality metrics to detect and remove outliers
 library(DESeq) 
@@ -73,7 +73,10 @@ library("ggplot2")
 
 #read in counts 
 countData <- read.csv("2.Assign2_GE_Coral_OA.csv")
+
+##run this only once to move col1 data to become row names
 #countData <- data.frame(countData, row.names = 1)
+
 head(countData)
 length(countData[,1])
 #16931
@@ -118,6 +121,9 @@ res<- results(dds)
 #Look at dispersions plot
 plotDispEsts(dds, main="Dispersion plot temperature")
 
+####################################################################################################
+
+
 ####################pH8 vs pH7.6 pairwise comparisons
 # ORDER MATTERS treatment, control
 colData$heat<-factor(colData$temperature, levels=c("Hot", "Control"))
@@ -155,7 +161,7 @@ write.table(resheat, file="resheat.txt", quote=F, sep="\t")
 
 cd <- read.table("resheat.txt")
 head(cd)
-
+#########################################################################################################
 ##make the GO table for MWU
 head(cd)
 
@@ -172,7 +178,7 @@ colnames(go_input_heat) <- c("gene", "pval")
 head(go_input_heat)
 write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
 
-#########################################################################################################
+
 ###Pco2 pH8 vs pH7.5
 # summary(res)
 # resph75 <- results(dds, contrast=c("treat","pH7.5", "pH8"))
@@ -214,8 +220,8 @@ write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
 # write.csv(go_input_7.5, file="7.5_GO.csv", quote=F, row.names=FALSE)
 # 
 # write.table(resph75, file="7.5_2016.txt", quote=F, sep="\t")
-###############################################################################################
-##############################################################################
+
+
 #--------------get pvals
 valheat=cbind(resheat$pvalue, resheat$padj)
 head(valheat)
@@ -320,6 +326,9 @@ heatmap.2(as.matrix(sampleDists), key=F, trace="none",
 #   cat.pos = 1
 # );
 # grid.draw(prettyvenn)
+
+####################################################################################################
+
 
 ###########################heat map of sample distances for pco2
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
