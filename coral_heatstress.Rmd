@@ -192,8 +192,6 @@ cd <- read.table("resheat.txt")
 head(cd)
 ```
 
------------------------
-
 
 ## GO table for MWU
 
@@ -218,6 +216,7 @@ head(valheat)
 colnames(valheat)=c("pval.heat", "padj.heat")
 length(valheat[,1])
 ```
+
 ```{r}
 table(complete.cases(valheat))
 ```
@@ -276,16 +275,16 @@ Principal component analysis of the r-log transformed data.
 ```{r}
 rld_t=t(rld)
 pca <- prcomp(rld_t,center = TRUE)
-head(pca)
+#head(pca)
 li <- pca$sdev^2 / sum(pca$sdev^2)
 pc1v <- round(li[1] * 100, 1)
 pc2v <- round(li[2] * 100, 1)
 pca_s <- as.data.frame(pca$x)
-head(pca_s)
+#head(pca_s)
 pca_s <- pca_s[,c(1,2)]
 pca_s$Samples = row.names(pca_s)
 pca_s$treat=colData$temperature
-head(pca_s)
+#head(pca_s)
 ```
 Here, we are essentially looking at the distance between the two points, to visualize overall variance.
 ```{r}
@@ -299,7 +298,7 @@ ggplot(pca_s, aes(PC1, PC2, color = treat, pch = treat)) +
   geom_polygon(alpha=.2)+
   xlab(paste0("PC1: ",pc1v,"% variance")) +
   ylab(paste0("PC2: ",pc2v,"% variance")) 
-head(pca)
+#head(pca)
 ```
 We then use 'adonis' to determine if gene expression between treatments is significant or not. We see that the treatment plotted has an R2 value of .91461, which can be considered significant.
 ```{r}
@@ -314,7 +313,7 @@ head(rldpvals)
 rld_site= rldpvals[,1:4]
 head(rld_site)
 gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote ='')
-head(gg)
+#head(gg)
 ```
 ```{r}
 nrow(rldpvals[rldpvals$padj.heat<0.01& !is.na(rldpvals$padj.heat),])
