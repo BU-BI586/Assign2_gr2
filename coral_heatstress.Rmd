@@ -2,13 +2,16 @@
 title: "Coral Heat Stress"
 author: "Grace Beery, Hayden Dickerson, Susritha Kopparapu"
 date: "3/27/2021"
-output: html_document
+output: 
+  html_document:
+    fig_width: 6 
+    fig_height: 4 
 ---
 *The following script is modified from Sarah Davies and James Fifer*
 
 ## Introduction
 
-## Setup
+## Version Control
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -30,6 +33,7 @@ library("pheatmap")                 #Version 1.0.12
 library("vegan")                    #Version 2.5.7
 library("ggrepel")                  #Version 0.8.2
 library("tidyverse")                #Version 1.3.0
+library("ape")                      #Version 5.4.1
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -45,21 +49,156 @@ packageVersion("ggrepel")
 packageVersion("tidyverse")
 ```
 
+## Setup
+```{r, echo=FALSE}
+setwd("/usr4/bi594/skoppara/Assignment2/Assign2_gr2")
+```
+
+We first read in the isogroup gene annotations file and the raw counts from the study (Davies et al. 2016). There are a total of 16931 isogroups in this data set. 
+```{r}
+gg=read.table(file="davies_Ssid_iso2gene.tab",sep="\t", quote="")     #must specify quote="", or EOF error occurs
+countData <- read.csv("2.Assign2_GE_Coral_OA.csv")
+head(countData)
+length(countData[,1])
+```
+
+The first column of the `countData` is the names of the isogroups, so the first line of code is used to turn the first column into the row names. Then the column names of `countData` are set to be the values of the character vector. In this data frame there are two control samples and two hot samples. 
+```{r}
+countData <- data.frame(countData, row.names = 1)                     #NOTE: this line should only run once
+names(countData)=c( "Control_1", "Hot_1", "Control_2", "Hot_2")
+head(countData)
+```
+
+The dataframe is now properly set to check for outliers. 
+
 ## Outlier Analysis 
+Set up a vector that can be converted to a data frame with the names of the different treatments, these correspond to the column names.
+```{r}
+treat=c( "Control_1", "Hot_1", "Control_2", "Hot_2")
+colData=data.frame(treat)
+colData
+```
+
+The countData is set to the raw counts, the colData is set to the names of each of the columns, and the design is set to the character vector treat, that holds the names of the treatments. The DESeqDataSetFromMatrix step is run.
+```{r, warning=FALSE}
+dds=DESeqDataSetFromMatrix(countData=countData, colData=colData, design=~treat)
+```
+
+The `vst` function is the variance-stabilizing transformation which models the mean-variance relationship of replicates. The assay of `r1` generates a table with the mean-variance of each of the isogroup treatments. The `as.data.frame(colData(rl)))` generates a table with the columns and a sizeFactor value that is converted into the formal class AnnotatedDataFrame. Both values are passed are used to create an `ExpressionSet` object which is used to generate the array's quality metrics using the `treat` variable as the intgroup. 
+```{r, eval=FALSE}
+rl=vst(dds)
+e=ExpressionSet(assay(rl), AnnotatedDataFrame(as.data.frame(colData(rl))))
+arrayQualityMetrics(e,outdir=v,intgroup=c("treat"),force=T)
+```
+
+### Visualization
+The array's quality metrics showed that there were no outliers by the three detection methods: by distances between arrays, by boxplots, and by MA plots. Below is the heatmap of distance between arrays. 
+
+
+![**Figure 1.** Heatmap of the distances between arrays generated with array quality metrics. The color scale is chosen to cover the range of distances encountered in the dataset. Patterns in this plot can indicate clustering of the arrays either because of intended biological or unintended experimental factors (batch effects). No outliers for any of the four arrays were detected.](/usr4/bi594/skoppara/Assignment2/Assign2_gr2/images/hm.png)
 
 ## Raw Counts Analysis
 
-## Deseq
+Next, a data frame made of the treatments and the raw counts is used to generate a bar plot of total counts. 
+```{r}
+summedCounts=as.data.frame(colSums(countData))
+totalCounts = as.data.frame(treat)
+totalCounts$raw = summedCounts[,1]
+totalCounts$treat <- factor(totalCounts$treat, levels = totalCounts$treat)
+
+```
+
+```{r, echo=FALSE, fig.cap = "**Figure 2.** Bar plot of the raw totals of the number of isogroups for each of the treatment temperatures in the *Siderastrea siderea*." }
+p <- ggplot(totalCounts, aes(x = treat, y = raw))
+p + geom_bar(aes(fill = treat), stat="identity") + xlab("Temperature") + ylab("Raw Counts")
+```
+
+
+Below are the totals, minumum, and maximum of the raw counts. 
+```{r, include=FALSE}
+totalCounts=colSums(countData)
+
+```
+
+```{r}
+totalCounts
+min(totalCounts)
+max(totalCounts)
+```
+
+## DESeq Analysis 
+
+A vector of the temperatures of each sample, and vector of the genotype of each sample is made and the `DESeqDataSetFromMatrix` step is repeated with the treatment as the temperature alone. Then that large DESeqDataSet is handed to `DESeq`. 
+```{r, warning=FALSE, message=FALSE}
+
+temperature=c( "Control", "Hot", "Control", "Hot")
+genotype=c( "a", "a", "b", "b")
+colData=data.frame(temperature, genotype)
+dds<-DESeqDataSetFromMatrix(countData=countData, colData=colData, design=~temperature) 
+dds<-DESeq(dds)
+
+```
+
+
+`results` extracts the results table from the DESeq analysis and the DESeqDataSet is used to generate the dispersion plot. 
+```{r}
+head(dds)
+res<- results(dds)
+```
+
+```{r, echo=FALSE, fig.cap="**Figure 3.** Scatter plot of dispersion estimates per gene (on the y-axis) versus the mean of normalized counts (on the x-axis) of isogroups identified in the treatment samples of *Siderastrea siderea*. Gene-wise dispersion estimates are in black, fitted estimates are in red, and final estimates are in blue as indicated by the legend. "}
+plotDispEsts(dds, main="Dispersion plot *Siderastrea siderea*")
+
+```
+
+## Hot vs. Control Pairwise Comparison
+
+The temperature column is represented as a factor with two levels being either hot or control. These are stored in a new column called heat. Then the results extracts the results table of DESeqDataSet with the contrast set as temperature, between hot and cold.
+```{r}
+colData$heat<-factor(colData$temperature, levels=c("Hot", "Control"))
+resheat <- results(dds, contrast=c("temperature","Hot","Control"))
+
+```
+
+The results table reports a p-adjusted value for every isogroup, and below is the breakdown of how many of these isogroups had p-adjusted values below 0.01, to be considered significant. The summary of the results with a contrast by temperature is also displayed below. Notice that while only 2.3% of genes were upregulated, 11% were downregulated. 
+```{r}
+table(resheat$padj<0.01)
+summary(resheat)
+```
+
+The number of genes that have a p-adjusted value less than 0.05 and that do not have NA values for the p-adjusted values, are counted and reported below. 
+```{r}
+nrow(resheat[resheat$padj<0.05 & !is.na(resheat$padj),])
+```
+
+```{r, echo=FALSE, fig.cap="**Figure 4.** Hot vs. Control temperatures scatter plot of log fold changes (on the y-axis) versus the mean of normalized counts (on the x-axis) of the isogroups identified in the treatments samples of *Siderastrea siderea*. The non signicant data points are in gray, and significant data points are represented in blue."}
+plotMA(resheat, main="Hot vs Control", ylim=c(-2,2))
+```
+
+```{r, include=FALSE}
+results <- as.data.frame(resheat)
+```
+
+
+The number of upregulated and downregulated genes that have a p-adjusted value less than 0.1 and that do not have NA values for the p-adjusted values, are counted and reported below.
+```{r}
+nrow(resheat[resheat$padj<0.1 & resheat$log2FoldChange > 0 & !is.na(resheat$padj),])
+nrow(resheat[resheat$padj<0.1 & resheat$log2FoldChange < 0 & !is.na(resheat$padj),])
+```
+
+```{r, include = FALSE}
+write.table(resheat, file="resheat.txt", quote=F, sep="\t")
+cd <- read.table("resheat.txt")
+head(cd)
+```
 
 -----------------------
 
-## Pairwise comparison between hot and control 
 
 ## GO table for MWU
 
 ## P values and Rlogdata
 
------------------------
 ## Heat map of sample distances
 
 ## PCA
@@ -67,9 +206,44 @@ packageVersion("tidyverse")
 ## Heat map for genes 
 
 ## Heat map for genes in common 
+
+## GO Enrichment Analysis 
+
+The *Siderastrea sidera* transcriptome isogroup GO annotations were retrieved from the study (Davies et al. 2016) The GO database was downloaded from [Gene Ontology](http://geneontology.org/docs/download-ontology/) and here the go_basic.obo file is being used, but was renamed go.obo. This analysis was done for the biological processes division. 
+
+Furthermore, all `gomwustats` settings were made to default, except the `smallest` parameter that was raised to 10 to set more stringent boundaries. 
+```{r, eval=FALSE}
+input="heat_GO.csv"
+goAnnotations="davies_Ssid_iso2go.tab" 
+goDatabase="go.obo" # download from http://www.geneontology.org/GO.downloads.ontology.shtml
+goDivision="BP" 
+source("gomwu.functions.R")
+
+gomwuStats(input, goDatabase, goAnnotations, goDivision,
+           perlPath="C:/Strawberry/perl/bin/perl.exe", 
+           largest=0.1, 
+           smallest=10,   
+           clusterCutHeight=0.25
+)
+```
+
+As there was a strong signal, the levels were chosen to be very stringent as described in the caption.  
+```{r, eval=FALSE, echo=FALSE}
+results=gomwuPlot(input,goAnnotations,goDivision,
+	absValue=1,
+	level1=0.01, 
+	level2=0.001,
+	level3=0.0001, 
+	txtsize=1.2,    
+	treeHeight=1, 
+  colors=c("dodgerblue2","firebrick1","skyblue2","lightcoral") 
+)
+```
+![**Figure 8.** GO MWU plot with level 1 at 0.01, level 2 at 0.001, and level 3 at 0.0001. The biological processes (BP) sub-ontology was used for this analysis. Blue represents upregulated GO terms and red represents downregulated GO terms](/usr4/bi594/skoppara/Assignment2/Assign2_gr2/images/goplot.png)
+
 -----------------------
 
 ## Conclusion 
 
-
-
+## Reference
+Davies SW, Marchetti A, Ries, JB and KD Castillo (2016) Thermal and pCO2 stress elicit divergent transcriptomic responses in a resilient coral. Frontiers in Marine Science. FMARS-03-00112.

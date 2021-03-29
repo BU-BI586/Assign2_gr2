@@ -7,7 +7,8 @@ BiocManager::install(c("arrayQualityMetrics"))
 BiocManager::install("DESeq", version = "3.12")
 devtools::install_version("DESeq", "1.38.0")
 #set your working directory
-#setwd("/usr4/bi594/skoppara/Assignment2/Assign2_gr2") #you will need to change to your own directory
+#
+setwd("/usr4/bi594/skoppara/Assignment2/Assign2_gr2") #you will need to change to your own directory
 
 ###conduct array quality metrics to detect and remove outliers
 library(DESeq) 
@@ -37,7 +38,8 @@ head(countData)
 length(countData[,1])
 #16931
 ##names(countData)=c( "Control_1", "Hot_1", "Control_2", "Hot_2")
-## RUN ONCE TO SET ISOGROUP TO ROWNAME countData <- data.frame(countData, row.names = 1)
+## RUN ONCE TO SET ISOGROUP TO ROWNAME 
+countData <- data.frame(countData, row.names = 1)
 row.names(countData)=sub("", "isogroup", rownames(countData))
 head(countData)
 
@@ -57,6 +59,8 @@ dds=DESeqDataSetFromMatrix(countData=countData, colData=g, design=~treat)
 
 vsd.ge=assay(vst(dds))
 rl=vst(dds)
+something = AnnotatedDataFrame(as.data.frame(colData(rl)))
+a1 = assay(rl)
 e=ExpressionSet(assay(rl), AnnotatedDataFrame(as.data.frame(colData(rl))))
 arrayQualityMetrics(e,outdir=v,intgroup=c("treat"),force=T)
 dev.off()
@@ -87,9 +91,18 @@ names(countData)=c( "Control_1", "Hot_1", "Control_2", "Hot_2" )
 #row.names(countData)=sub("", "isogroup", rownames(countData))
 head(countData)
 
+summedCounts=as.data.frame(colSums(countData))
+
+barplot(totalCounts, col=c("#ff6666", "#6666ff", "#ffcc00", "#339900"), ylab="raw counts")
+
+totalCounts = as.data.frame(treat)
+totalCounts$raw = summedCounts[,1]
+totalCounts$treat <- factor(totalCounts$treat, levels = totalCounts$treat)
+p <- ggplot(totalCounts, aes(x = treat, y = raw))
+p + geom_bar(aes(fill = treat), stat="identity") + xlab("Temperature") + ylab("Raw Counts")
+
+
 totalCounts=colSums(countData)
-totalCounts
-barplot(totalCounts, col=c("coral", "red", "blue", "green"), ylab="raw counts")
 
 # # pH7.5a  pH7.5b  pH7.5c  pH7.6a  pH7.6b  pH7.6c    pH8a    pH8b    pH8c 
 # 789550  918366 1027861  926497  816054  770342  612258  651727  480153 
@@ -104,7 +117,7 @@ g=data.frame(temperature, genotype)
 g
 colData<- g
 
-dds<-DESeqDataSetFromMatrix(countData=countData, colData=colData, design=~temperature) #can only test for the main effects of site, pco2, temp
+dds<-DESeqDataSetFromMatrix(countData=countData, colData=data.frame(temperature), design=~temperature) #can only test for the main effects of site, pco2, temp
 
 #one step DESeq
 dds<-DESeq(dds)
@@ -121,7 +134,6 @@ res<- results(dds)
 #Look at dispersions plot
 plotDispEsts(dds, main="Dispersion plot temperature")
 
-####################################################################################################
 
 
 ####################pH8 vs pH7.6 pairwise comparisons
@@ -130,6 +142,7 @@ colData$heat<-factor(colData$temperature, levels=c("Hot", "Control"))
 ##second term is the "control"
 resheat <- results(dds, contrast=c("temperature","Hot","Control"))
 #how many FDR < 10%?
+resheat
 table(resheat$padj<0.01)
 # FALSE  TRUE 
 # 14826  1660 
@@ -177,6 +190,7 @@ head(go_input_heat)
 colnames(go_input_heat) <- c("gene", "pval")
 head(go_input_heat)
 write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
+####################################################################################################
 
 
 ###Pco2 pH8 vs pH7.5
