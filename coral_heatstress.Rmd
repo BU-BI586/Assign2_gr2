@@ -197,13 +197,128 @@ head(cd)
 
 ## GO table for MWU
 
+```{r}
+go_input_heat = cd %>%
+  tibble::rownames_to_column(var = "iso") %>%
+  mutate(mutated_p = -log(pvalue)) %>%
+  mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
+  na.omit() %>%
+  select(iso, mutated_p_updown)
+head(go_input_heat)
+colnames(go_input_heat) <- c("gene", "pval")
+head(go_input_heat)
+write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
+```
+
 ## P values and Rlogdata
+Pulls out p-values for the 
+```{r}
+valheat=cbind(resheat$pvalue, resheat$padj)
+head(valheat)
+colnames(valheat)=c("pval.heat", "padj.heat")
+length(valheat[,1])
+```
+```{r}
+table(complete.cases(valheat))
+```
+Uses r log transformation on data as a data normalization method. This r log tranformation will be important for making heatmaps. Last line sanity checks length to ensure we are not losing any data.
+```{r}
+rlog=rlogTransformation(dds, blind=TRUE) 
+rld=assay(rlog)
+head(rld)
+length(rld[,1])
+```
+Then, we bind together the rlog data and p values. This allows us to be able to sort values for significance when plotting heatmaps.
+```{r}
+rldpvals=cbind(rld,valheat)
+head(rldpvals)
+dim(rldpvals)
+```
+The table of the combined rlog data and p values should remain the same number of FALSE / TRUE as our p values above. 
+```{r}
+table(complete.cases(rldpvals))
+```
 
 ## Heat map of sample distances
+We plot a sample distance heatmap to see how general expression compares from sample to sample. The purpose of this map is to look at how overall expression from each sample is similar to each other.
+```{r}
+sampleDists <- as.matrix(dist(t(rld)))
+library(gplots)
+heatmap.2(as.matrix(sampleDists), key=F, trace="none",
+          col=colorpanel(100, "black", "white"),
+          margin=c(10, 10), main="Sample Distance Matrix")
+```
+We create a table containing our previously normalized data and p values, but exclude the last two columns to ensure p values are excluded from our heatmap plots. While p values are informative for helping pick out which genes we want to visualize, we don't actually want to visualize the p value data.
+```{r}
+rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
+head(rldpvals)
+rld=rldpvals[,1:4]
+head(rld)
+sampleDists <- dist(t(rld))
+sampleDistMatrix <- as.matrix( sampleDists )
+treat=c( "Hot", "Control")
+```
+```{r}
+sampleDists <- dist(t(rld))
+sampleDistMatrix <- as.matrix( sampleDists )
+treat=c( "Hot", "Control")
+```
+Using the table above, a heatmap is created. This is essentially the same heatmap as our Sample Distance Matrix above, just in color.
+```{r}
+heat.colors = colorRampPalette(rev(c("blue","yellow","red")),bias=0.3)(100)
+pheatmap(sampleDistMatrix,color = heat.colors,cex=0.9,border_color=NA,cluster_rows=T,cluster_cols=T)
+
+```
+
 
 ## PCA
+Principal component analysis of the r-log transformed data.
+```{r}
+rld_t=t(rld)
+pca <- prcomp(rld_t,center = TRUE)
+head(pca)
+li <- pca$sdev^2 / sum(pca$sdev^2)
+pc1v <- round(li[1] * 100, 1)
+pc2v <- round(li[2] * 100, 1)
+pca_s <- as.data.frame(pca$x)
+head(pca_s)
+pca_s <- pca_s[,c(1,2)]
+pca_s$Samples = row.names(pca_s)
+pca_s$treat=colData$temperature
+head(pca_s)
+```
+Here, we are essentially looking at the distance between the two points, to visualize overall variance.
+```{r}
+cbPalette <- c("darkgoldenrod2",  "darkolivegreen3") #, "dodgerblue3", "red")
+ggplot(pca_s, aes(PC1, PC2, color = treat, pch = treat)) +
+  geom_point(size=3) +
+  #  geom_text_repel(aes(label=Samples)) +
+  scale_colour_manual(values=cbPalette)+
+  theme_bw() +
+  # geom_density2d(alpha=.5)+
+  geom_polygon(alpha=.2)+
+  xlab(paste0("PC1: ",pc1v,"% variance")) +
+  ylab(paste0("PC2: ",pc2v,"% variance")) 
+head(pca)
+```
+We then use 'adonis' to determine if gene expression between treatments is significant or not. We see that the treatment plotted has an R2 value of .91461, which can be considered significant.
+```{r}
+adonis(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
+```
+
 
 ## Heat map for genes 
+```{r}
+rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
+head(rldpvals)
+rld_site= rldpvals[,1:4]
+head(rld_site)
+gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote ='')
+head(gg)
+```
+```{r}
+nrow(rldpvals[rldpvals$padj.heat<0.01& !is.na(rldpvals$padj.heat),])
+```
 
 ## Heat map for genes in common 
 
