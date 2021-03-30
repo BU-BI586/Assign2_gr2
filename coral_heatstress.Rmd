@@ -10,6 +10,7 @@ output:
 *The following script is modified from Sarah Davies and James Fifer*
 
 ## Introduction
+Intro here (Grace will do this)
 
 ## Version Control
 
@@ -318,8 +319,57 @@ gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote ='')
 ```{r}
 nrow(rldpvals[rldpvals$padj.heat<0.01& !is.na(rldpvals$padj.heat),])
 ```
+topnum = 100 represents the number of differentially expressed genes
+```{r}
+topnum= 100
+head(rldpvals)
+top100=head(rldpvals[order(rldpvals$padj.heat), ],topnum)
+head(top100)
+length(top100[,1])
+summary(top100)
+```
+We use a p value of 0.1 as our FDR cutoff
+```{r}
+head(top100)
+p.val=0.1 
+conds=top100[top100$padj.heat<=p.val & !is.na(top100$padj.heat),]
+length(conds[,1])
+
+exp=conds[,1:4] 
+means=apply(exp,1,mean) 
+explc=exp-means 
+head(explc)
+```
+Then assign colors and create a heatmap
+```{r}
+ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
+col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
+
+pheatmap(explc,cluster_cols=T,scale="row",color=ccol, show_rownames = F)
+```
 
 ## Heat map for genes in common 
+
+```{r}
+rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
+head(rldpvals)
+p.val=0.1 # FDR cutoff
+conds=rldpvals[rldpvals$padj.heat<=p.val & !is.na(rldpvals$padj.heat),]
+rld_data= conds[,c(1:4)]
+head(rld_data)
+nrow(rld_data)
+gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote='')
+means=apply(rld_data,1,mean) # means of rows
+explc=rld_data-means
+```
+```{r}
+ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
+col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
+
+pheatmap(explc,cluster_cols=T,scale="row",color=col0, show_rownames = F)
+```
+
+
 
 ## GO Enrichment Analysis 
 
@@ -358,6 +408,7 @@ results=gomwuPlot(input,goAnnotations,goDivision,
 -----------------------
 
 ## Conclusion 
+Conclusion here (Grace will do this!)
 
 ## Reference
 Davies SW, Marchetti A, Ries, JB and KD Castillo (2016) Thermal and pCO2 stress elicit divergent transcriptomic responses in a resilient coral. Frontiers in Marine Science. FMARS-03-00112.
