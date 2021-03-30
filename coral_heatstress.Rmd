@@ -10,7 +10,7 @@ output:
 *The following script is modified from Sarah Davies and James Fifer*
 
 ## Introduction
-Due to climate change, water temperatures and atmospheric carbon dioxide levels are projected to increase significantly in future years. Calcifying organisms, such as corals, are expected to be the most drastically impacted by heat and acidification stress due to their fragile structures. This study looks at a resilient reef-building coral, Siderastrea siderea, to determine how heat stress and acification affect its molecular pathways. For our reanalysis, we are looking specifically at heat stress versus control. Our subsample contained 1 control sample (28 degrees C) from the nearshore region, 1 control sample from the fore reef region, 1 heat sample (32 degrees C) from the nearshore region, and 1 heat sample from the fore reef region. Each sample was kept at a standard atmospheric CO2 level of between 472-477 μatm. 
+Due to climate change, water temperatures and atmospheric carbon dioxide levels are projected to increase significantly in future years. Calcifying organisms, such as corals, are expected to be the most drastically impacted by heat and acidification stress due to their fragile structures. This study looks at a resilient reef-building coral, *Siderastrea siderea*, to determine how heat stress and acidification affect its molecular pathways. For our reanalysis, we are looking specifically at heat stress versus control. Our subsample contained 1 control sample (28 degrees C) from the nearshore region, 1 control sample from the fore-reef region, 1 heat sample (32 degrees C) from the nearshore region, and 1 heat sample from the fore -reef region. Each sample was kept at a standard atmospheric CO2 level of between 472-477 μatm. All data came from the [Thermal and pCO2 stress elicit divergent transcriptomic responses in a resilient coral](https://www.frontiersin.org/articles/10.3389/fmars.2016.00112/full) study (Davies et al. 2016). 
 
 ## Version Control
 
@@ -35,6 +35,7 @@ library("vegan")                    #Version 2.5.7
 library("ggrepel")                  #Version 0.8.2
 library("tidyverse")                #Version 1.3.0
 library("ape")                      #Version 5.4.1
+library("gplots")                   #Version 3.0.4
 ```
 
 ```{r, eval=FALSE, echo=FALSE}
@@ -73,7 +74,7 @@ head(countData)
 The dataframe is now properly set to check for outliers. 
 
 ## Outlier Analysis 
-Set up a vector that can be converted to a data frame with the names of the different treatments, these correspond to the column names.
+A vector is set up so that it can be converted to a data frame with the names of the different treatments. These correspond to the column names.
 ```{r}
 treat=c( "Control_1", "Hot_1", "Control_2", "Hot_2")
 colData=data.frame(treat)
@@ -93,7 +94,7 @@ arrayQualityMetrics(e,outdir=v,intgroup=c("treat"),force=T)
 ```
 
 ### Visualization
-The array's quality metrics showed that there were no outliers by the three detection methods: by distances between arrays, by boxplots, and by MA plots. Below is the heatmap of distance between arrays. 
+The array's quality metrics showed that there were no outliers by the three detection methods: by distances between arrays, by boxplots, and by MA plots. Below is the heatmap of sample distance between arrays. 
 
 
 ![**Figure 1.** Heatmap of the distances between arrays generated with array quality metrics. The color scale is chosen to cover the range of distances encountered in the dataset. Patterns in this plot can indicate clustering of the arrays either because of intended biological or unintended experimental factors (batch effects). No outliers for any of the four arrays were detected.](/usr4/bi594/skoppara/Assignment2/Assign2_gr2/images/hm.png)
@@ -154,7 +155,7 @@ plotDispEsts(dds, main="Dispersion plot *Siderastrea siderea*")
 
 ## Hot vs. Control Pairwise Comparison
 
-The temperature column is represented as a factor with two levels being either hot or control. These are stored in a new column called heat. Then the results extracts the results table of DESeqDataSet with the contrast set as temperature, between hot and cold.
+The temperature column is represented as a factor with two levels being either hot or control. These are stored in a new column called heat. Then the results function extracts the results table of DESeqDataSet with the contrast set as temperature, between hot and control.
 ```{r}
 colData$heat<-factor(colData$temperature, levels=c("Hot", "Control"))
 resheat <- results(dds, contrast=c("temperature","Hot","Control"))
@@ -196,6 +197,7 @@ head(cd)
 
 ## GO table for MWU
 
+Use the results from the DESeq analysis with the contrast as the temperature to generate the GO table for the specific isogroups in the samples. This generates the table with the signed p values that can be used for the GO enrichment analysis later on. 
 ```{r}
 go_input_heat = cd %>%
   tibble::rownames_to_column(var = "iso") %>%
@@ -203,37 +205,37 @@ go_input_heat = cd %>%
   mutate(mutated_p_updown = ifelse(log2FoldChange < 0, mutated_p*-1, mutated_p*1)) %>%
   na.omit() %>%
   select(iso, mutated_p_updown)
-head(go_input_heat)
 colnames(go_input_heat) <- c("gene", "pval")
 head(go_input_heat)
 write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
 ```
 
 ## P values and Rlogdata
-Pulls out p-values.
+The p-values and p-adjusted values are bound together and the number of rows representing the isogroups were preserevd when checked against the p-values.
 ```{r}
 valheat=cbind(resheat$pvalue, resheat$padj)
-head(valheat)
 colnames(valheat)=c("pval.heat", "padj.heat")
 length(valheat[,1])
 ```
 
+Below is a report of the number of complete cases that were not missing any values. 
 ```{r}
 table(complete.cases(valheat))
 ```
-Uses r log transformation on data as a data normalization method. This r log tranformation will be important for making heatmaps. Last line sanity checks length to ensure we are not losing any data.
+
+R log transformation is used on the data as a data normalization method. This r log tranformation will be important for making heatmaps. The last line sanity checks length to ensure we are not losing any data.
 ```{r}
 rlog=rlogTransformation(dds, blind=TRUE) 
 rld=assay(rlog)
-head(rld)
 length(rld[,1])
 ```
+
 Then, we bind together the rlog data and p values. This allows us to be able to sort values for significance when plotting heatmaps.
 ```{r}
 rldpvals=cbind(rld,valheat)
-head(rldpvals)
 dim(rldpvals)
 ```
+
 The table of the combined rlog data and p values should remain the same number of FALSE / TRUE as our p values above. 
 ```{r}
 table(complete.cases(rldpvals))
@@ -243,28 +245,25 @@ table(complete.cases(rldpvals))
 We plot a sample distance heatmap to see how general expression compares from sample to sample. The purpose of this map is to look at how overall expression from each sample is similar to each other, and can be used as a sanity check to ensure our data is being displayed in the way that we expect it to be. As we see the controls are more similar to the controls and the hot treatments are more similar to themselves, we can conclude that our data looks how we would expect and can proceed.
 ```{r}
 sampleDists <- as.matrix(dist(t(rld)))
-library(gplots)
+```
+
+```{r, echo = FALSE, fig.cap="**Figure 5.** A sample distance matrix heatmap to see the general expression comparison from sample to sample." }
 heatmap.2(as.matrix(sampleDists), key=F, trace="none",
           col=colorpanel(100, "black", "white"),
-          margin=c(10, 10), main="Sample Distance Matrix")
+          margin=c(10, 10))
 ```
+
 We create a table containing our previously normalized data and p values, but exclude the last two columns to ensure p values are excluded from our heatmap plots. While p values are informative for helping pick out which genes we want to visualize, we don't actually want to visualize the p value data.
 ```{r}
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
-head(rldpvals)
 rld=rldpvals[,1:4]
-head(rld)
 sampleDists <- dist(t(rld))
 sampleDistMatrix <- as.matrix( sampleDists )
 treat=c( "Hot", "Control")
 ```
-```{r}
-sampleDists <- dist(t(rld))
-sampleDistMatrix <- as.matrix( sampleDists )
-treat=c( "Hot", "Control")
-```
+
 Using the table above, a heatmap is created. This is essentially the same heatmap as our Sample Distance Matrix above, just in color.
-```{r}
+```{r,  echo = FALSE, warning=FALSE, message=FALSE, fig.cap="**Figure 6.** A sample distance matrix heatmap to see the general expression comparison from sample to sample in color."}
 heat.colors = colorRampPalette(rev(c("blue","yellow","red")),bias=0.3)(100)
 pheatmap(sampleDistMatrix,color = heat.colors,cex=0.9,border_color=NA,cluster_rows=T,cluster_cols=T)
 
@@ -276,19 +275,17 @@ Principal component analysis of the r-log transformed data.
 ```{r}
 rld_t=t(rld)
 pca <- prcomp(rld_t,center = TRUE)
-#head(pca)
 li <- pca$sdev^2 / sum(pca$sdev^2)
 pc1v <- round(li[1] * 100, 1)
 pc2v <- round(li[2] * 100, 1)
 pca_s <- as.data.frame(pca$x)
-#head(pca_s)
 pca_s <- pca_s[,c(1,2)]
 pca_s$Samples = row.names(pca_s)
 pca_s$treat=colData$temperature
-#head(pca_s)
 ```
+
 Here, we are essentially looking at the distance between the two points, to visualize overall variance. Variance on the Y axis is explained by the different study site locations, ie. fore reef versus nearshore. 
-```{r}
+```{r,  echo = FALSE, fig.cap="**Figure 7.** Principal component analysis of all samples in the subset of data where the PC1 along the x-axis is the only meaningful axis of variance. The legend shows the difference between control and hot treatment samples. See below adonis data that shows this variance is significant."}
 cbPalette <- c("darkgoldenrod2",  "darkolivegreen3") #, "dodgerblue3", "red")
 ggplot(pca_s, aes(PC1, PC2, color = treat, pch = treat)) +
   geom_point(size=3) +
@@ -299,40 +296,37 @@ ggplot(pca_s, aes(PC1, PC2, color = treat, pch = treat)) +
   geom_polygon(alpha=.2)+
   xlab(paste0("PC1: ",pc1v,"% variance")) +
   ylab(paste0("PC2: ",pc2v,"% variance")) 
-#head(pca)
 ```
-We then use 'adonis' to determine if gene expression between treatments is significant or not. We see that the treatment plotted has an R2 value of .91461, which can be considered significant.
-```{r}
+
+We then use `adonis` to determine if gene expression between treatments is significant or not. We see that the treatment plotted has an R2 value of .91461, which can be considered significant.
+```{r, warning=FALSE, message=FALSE}
 adonis(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
 ```
 
-
 ## Heat map for genes 
 
-This heatmap will display the differences in gene expression for each treatment based on their site of origin. Here, we are looking for similarities in gene expression from
+This heatmap will display the differences in gene expression for each treatment based on their site of origin. Here, we are looking for similarities in gene expression.
+
 ```{r}
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
-head(rldpvals)
 rld_site= rldpvals[,1:4]
-head(rld_site)
 gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote ='')
-#head(gg)
 ```
+
 ```{r}
 nrow(rldpvals[rldpvals$padj.heat<0.01& !is.na(rldpvals$padj.heat),])
 ```
-topnum = 100 represents the number of differentially expressed genes
+
+topnum = 100 represents the number of differentially expressed genes. 
 ```{r}
 topnum= 100
-head(rldpvals)
 top100=head(rldpvals[order(rldpvals$padj.heat), ],topnum)
-head(top100)
 length(top100[,1])
 summary(top100)
 ```
-We use a p value of 0.1 as our FDR cutoff
+
+We use a p value of 0.1 as our FDR cutoff. 
 ```{r}
-head(top100)
 p.val=0.1 
 conds=top100[top100$padj.heat<=p.val & !is.na(top100$padj.heat),]
 length(conds[,1])
@@ -340,10 +334,10 @@ length(conds[,1])
 exp=conds[,1:4] 
 means=apply(exp,1,mean) 
 explc=exp-means 
-head(explc)
 ```
+
 Assign colors and create a heatmap. Here, we are looking for similarities in gene expression between hot 1 and hot 2, and between control 1 and control 2 to ensure that difference in study side (fore reef vs nearshore) does not significantly influence gene expression.
-```{r}
+```{r,  echo = FALSE, fig.cap="**Figure 8.** A heatmap of similarities in gene expression between hot1 and ho2 and control1 and control 2."}
 ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 
@@ -352,21 +346,19 @@ pheatmap(explc,cluster_cols=T,scale="row",color=ccol, show_rownames = F)
 
 ## Heat map for genes in common 
 
-Our next heatmap will display, among the genes in commmon for all treatments, upregulation and downregulation based on treament.
+Our next heatmap will display, among the genes in commmon for all treatments, upregulation and downregulation based on treament. The p-value for FDR cutoff was chosen to be 0.1
 ```{r}
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
-head(rldpvals)
 p.val=0.1 # FDR cutoff
 conds=rldpvals[rldpvals$padj.heat<=p.val & !is.na(rldpvals$padj.heat),]
 rld_data= conds[,c(1:4)]
-head(rld_data)
-nrow(rld_data)
 gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote='')
 means=apply(rld_data,1,mean) # means of rows
 explc=rld_data-means
 ```
+
 Assign colors and create heatmap. Here, we can see that the genes that are upregulated in the control are now downregulated in the heat treatment, and vice versa.Out of the genes that our control and heat treatment have in common, 379 are upregulated in the heat treatment, and 1839 are downreguated in the heat treatment.
-```{r}
+```{r,  echo = FALSE, fig.cap="**Figure 9.** A heatmap of the genes in common that shows the genes that were upregulated and downregulated."}
 ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 
@@ -407,12 +399,12 @@ results=gomwuPlot(input,goAnnotations,goDivision,
   colors=c("dodgerblue2","firebrick1","skyblue2","lightcoral") 
 )
 ```
-![**Figure 8.** GO MWU plot with level 1 at 0.01, level 2 at 0.001, and level 3 at 0.0001. The biological processes (BP) sub-ontology was used for this analysis. Blue represents upregulated GO terms and red represents downregulated GO terms](/usr4/bi594/skoppara/Assignment2/Assign2_gr2/images/goplot.png)
+![**Figure 10.** GO MWU plot with level 1 at 0.01, level 2 at 0.001, and level 3 at 0.0001. The biological processes (BP) sub-ontology was used for this analysis. Blue represents upregulated GO terms and red represents downregulated GO terms](/usr4/bi594/skoppara/Assignment2/Assign2_gr2/images/goplot.png)
 
 -----------------------
 
 ## Conclusion 
-Overall, we found that heat stress significantly affects molecular pathways in Siderastrea siderea. Our findings were mostly consisent with the findings of the original study, but more data is necessary to confirm our findings. We found that the heat treated corals have significant differences in gene expression-- the original study found that 72.3% of DEGs were underrepresented in the heat stress treatment, whereas our reanalysis found that close to 83% of DEGS were underrepresented in the heat stressed corals. This discrepancy could be due to the fact that analyses from the original to the reanalysis were performed in different versions of R, and that our reanalysis contained significantly fewer variables than the original, which could have been confounding the results. We also saw that in our GO enrichment analysis for Biological Processes, catabolic pathways are significantly upregulated under heat stress, which is consistent with the findings of the original study. Decreases in metabolic activity are known to be an adaptive strategy for managing short-term stress, however, long term upregulation of catabolic processes can lead to protein breakdown, so its possible that the corals under 32 degree Celsius heat stress are reaching the threshold of heat stress that they are unable to recover from. Overall, our findings largely support the finidngs of the original study, and emphasize how detrimental rising sea temperatures can be for reef-building corals, even resilient corals like Siderastrea siderea.
+Overall, we found that heat stress significantly affects molecular pathways in *Siderastrea siderea*. Our findings were mostly consistent with the findings of the original study, but more data is necessary to confirm our findings. We found that the heat treated corals have significant differences in gene expression-- the original study found that 72.3% of DEGs were underrepresented in the heat stress treatment (Davies et al. 2016), whereas our reanalysis found that close to 83% of DEGS were underrepresented in the heat stressed corals. This discrepancy could be due to the fact that analyses from the original to the reanalysis were performed in different versions of R, and that our reanalysis contained significantly fewer variables than the original, which could have been confounding the results. We also saw that in our GO enrichment analysis for Biological Processes, catabolic pathways are significantly upregulated under heat stress, which is consistent with the findings of the original study. Decreases in metabolic activity are known to be an adaptive strategy for managing short-term stress, however, long term upregulation of catabolic processes can lead to protein breakdown, so its possible that the corals under 32 degree Celsius heat stress are reaching the threshold of heat stress that they are unable to recover from. Overall, our findings largely support the finidngs of the original study, and emphasize how detrimental rising sea temperatures can be for reef-building corals, even resilient corals like *Siderastrea siderea*.
 
 ## Reference
 Davies SW, Marchetti A, Ries, JB and KD Castillo (2016) Thermal and pCO2 stress elicit divergent transcriptomic responses in a resilient coral. Frontiers in Marine Science. FMARS-03-00112.
