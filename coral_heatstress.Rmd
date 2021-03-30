@@ -10,7 +10,7 @@ output:
 *The following script is modified from Sarah Davies and James Fifer*
 
 ## Introduction
-Intro here (Grace will do this)
+Due to climate change, water temperatures and atmospheric carbon dioxide levels are projected to increase significantly in future years. Calcifying organisms, such as corals, are expected to be the most drastically impacted by heat and acidification stress due to their fragile structures. This study looks at a resilient reef-building coral, Siderastrea siderea, to determine how heat stress and acification affect its molecular pathways. For our reanalysis, we are looking specifically at heat stress versus control. Our subsample contained 1 control sample (28 degrees C) from the nearshore region, 1 control sample from the fore reef region, 1 heat sample (32 degrees C) from the nearshore region, and 1 heat sample from the fore reef region. Each sample was kept at a standard atmospheric CO2 level of between 472-477 μatm. 
 
 ## Version Control
 
@@ -210,7 +210,7 @@ write.csv(go_input_heat, file="heat_GO.csv", quote=F, row.names=FALSE)
 ```
 
 ## P values and Rlogdata
-Pulls out p-values for the 
+Pulls out p-values.
 ```{r}
 valheat=cbind(resheat$pvalue, resheat$padj)
 head(valheat)
@@ -240,7 +240,7 @@ table(complete.cases(rldpvals))
 ```
 
 ## Heat map of sample distances
-We plot a sample distance heatmap to see how general expression compares from sample to sample. The purpose of this map is to look at how overall expression from each sample is similar to each other.
+We plot a sample distance heatmap to see how general expression compares from sample to sample. The purpose of this map is to look at how overall expression from each sample is similar to each other, and can be used as a sanity check to ensure our data is being displayed in the way that we expect it to be. As we see the controls are more similar to the controls and the hot treatments are more similar to themselves, we can conclude that our data looks how we would expect and can proceed.
 ```{r}
 sampleDists <- as.matrix(dist(t(rld)))
 library(gplots)
@@ -287,7 +287,7 @@ pca_s$Samples = row.names(pca_s)
 pca_s$treat=colData$temperature
 #head(pca_s)
 ```
-Here, we are essentially looking at the distance between the two points, to visualize overall variance.
+Here, we are essentially looking at the distance between the two points, to visualize overall variance. Variance on the Y axis is explained by the different study site locations, ie. fore reef versus nearshore. 
 ```{r}
 cbPalette <- c("darkgoldenrod2",  "darkolivegreen3") #, "dodgerblue3", "red")
 ggplot(pca_s, aes(PC1, PC2, color = treat, pch = treat)) +
@@ -308,6 +308,8 @@ adonis(pca$x ~ treat, data = pca_s, method='eu', na.rm = TRUE)
 
 
 ## Heat map for genes 
+
+This heatmap will display the differences in gene expression for each treatment based on their site of origin. Here, we are looking for similarities in gene expression from
 ```{r}
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
 head(rldpvals)
@@ -340,7 +342,7 @@ means=apply(exp,1,mean)
 explc=exp-means 
 head(explc)
 ```
-Then assign colors and create a heatmap
+Assign colors and create a heatmap. Here, we are looking for similarities in gene expression between hot 1 and hot 2, and between control 1 and control 2 to ensure that difference in study side (fore reef vs nearshore) does not significantly influence gene expression.
 ```{r}
 ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
@@ -350,6 +352,7 @@ pheatmap(explc,cluster_cols=T,scale="row",color=ccol, show_rownames = F)
 
 ## Heat map for genes in common 
 
+Our next heatmap will display, among the genes in commmon for all treatments, upregulation and downregulation based on treament.
 ```{r}
 rldpvals <- read.csv(file="resheat_RLDandPVALS.csv", row.names=1)
 head(rldpvals)
@@ -362,6 +365,7 @@ gg=read.table("davies_Ssid_iso2gene.tab",sep="\t", row.names=1, quote='')
 means=apply(rld_data,1,mean) # means of rows
 explc=rld_data-means
 ```
+Assign colors and create heatmap. Here, we can see that the genes that are upregulated in the control are now downregulated in the heat treatment, and vice versa.Out of the genes that our control and heat treatment have in common, 379 are upregulated in the heat treatment, and 1839 are downreguated in the heat treatment.
 ```{r}
 ccol=colorRampPalette(rev(c("red","chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
 col0=colorRampPalette(rev(c("chocolate1","#FEE090","grey10", "cyan3","cyan")))(100)
@@ -408,7 +412,7 @@ results=gomwuPlot(input,goAnnotations,goDivision,
 -----------------------
 
 ## Conclusion 
-Conclusion here (Grace will do this!)
+Overall, we found that heat stress significantly affects molecular pathways in Siderastrea siderea. Our findings were mostly consisent with the findings of the original study, but more data is necessary to confirm our findings. We found that the heat treated corals have significant differences in gene expression-- the original study found that 72.3% of DEGs were underrepresented in the heat stress treatment, whereas our reanalysis found that close to 83% of DEGS were underrepresented in the heat stressed corals. This discrepancy could be due to the fact that analyses from the original to the reanalysis were performed in different versions of R, and that our reanalysis contained significantly fewer variables than the original, which could have been confounding the results. We also saw that in our GO enrichment analysis for Biological Processes, catabolic pathways are significantly upregulated under heat stress, which is consistent with the findings of the original study. Decreases in metabolic activity are known to be an adaptive strategy for managing short-term stress, however, long term upregulation of catabolic processes can lead to protein breakdown, so its possible that the corals under 32 degree Celsius heat stress are reaching the threshold of heat stress that they are unable to recover from. Overall, our findings largely support the finidngs of the original study, and emphasize how detrimental rising sea temperatures can be for reef-building corals, even resilient corals like Siderastrea siderea.
 
 ## Reference
 Davies SW, Marchetti A, Ries, JB and KD Castillo (2016) Thermal and pCO2 stress elicit divergent transcriptomic responses in a resilient coral. Frontiers in Marine Science. FMARS-03-00112.
